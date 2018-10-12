@@ -21,7 +21,7 @@ extern const char __STABSTR_END__[];		// End of string table
 //	entry of type 'type' that contains that address.
 //
 //	The search takes place within the range [*region_left, *region_right].
-//	Thus, to search an entire set of N stabs, you might do:
+//	Thus, to search an entire set of N stabs, you might do:++
 //
 //		left = 0;
 //		right = N - 1;     /* rightmost stab */
@@ -179,7 +179,11 @@ debuginfo_eip(uintptr_t addr, struct Eipdebuginfo *info)
 	//	Look at the STABS documentation and <inc/stab.h> to find
 	//	which one.
 	// Your code here.
-
+	stab_binsearch(stabs, &lline, &rline, N_SLINE, addr);
+	if(lline <= rline)
+		info -> eip_line = stabs[lline].n_desc;
+	else
+		return -1;
 
 	// Search backwards from the line number for the relevant filename
 	// stab.
