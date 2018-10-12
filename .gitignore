@@ -16,3 +16,6 @@
 /sol?/
 /myapi.key
 /.suf
+/.vscode
+/node_modules
+/tags
