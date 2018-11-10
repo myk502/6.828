@@ -65,7 +65,47 @@ trap_init(void)
 	extern struct Segdesc gdt[];
 
 	// LAB 3: Your code here.
-
+	void DIVIDE();
+    SETGATE(idt[T_DIVIDE], 0, GD_KT, DIVIDE, 0);
+	void DEBUG();
+	// Debug Exception could be trap or Fault
+	SETGATE(idt[T_DEBUG], 0, GD_KT, DEBUG, 3);
+	void NMI();
+	SETGATE(idt[T_NMI], 0, GD_KT, NMI, 0);
+	void BRKPT();
+	SETGATE(idt[T_BRKPT], 1, GD_KT, BRKPT, 3);
+	void OFLOW();
+	SETGATE(idt[T_OFLOW], 0, GD_KT, OFLOW, 0);
+	void BOUND();
+	SETGATE(idt[T_BOUND], 0, GD_KT, BOUND, 0);
+	void ILLOP();
+	SETGATE(idt[T_ILLOP], 0, GD_KT, ILLOP, 0);
+	void DEVICE();
+	SETGATE(idt[T_DEVICE], 0, GD_KT, DEVICE, 0);
+	void DBLFLT();
+	SETGATE(idt[T_DBLFLT], 0, GD_KT, DBLFLT, 0);
+	void TSS();
+	SETGATE(idt[T_TSS], 0, GD_KT, TSS, 0);
+	void SEGNP();
+	SETGATE(idt[T_SEGNP], 0, GD_KT, SEGNP, 0);
+	void STACK();
+	SETGATE(idt[T_STACK], 0, GD_KT, STACK, 0);
+	void GPFLT();
+	SETGATE(idt[T_GPFLT], 0, GD_KT, GPFLT, 0);
+	void PGFLT();
+	SETGATE(idt[T_PGFLT], 0, GD_KT, PGFLT, 0);
+	void FPERR();
+	SETGATE(idt[T_FPERR], 0, GD_KT, FPERR, 0);
+	void ALIGN();
+	SETGATE(idt[T_ALIGN], 0, GD_KT, ALIGN, 0);
+	void MCHK();
+	SETGATE(idt[T_MCHK], 0, GD_KT, MCHK, 0);
+	void SIMDERR();
+	SETGATE(idt[T_SIMDERR], 0, GD_KT, SIMDERR, 0);
+	void SYSCALL();
+	SETGATE(idt[T_SYSCALL], 1, GD_KT, SYSCALL, 3);
+	void DEFAULT();
+	SETGATE(idt[T_DEFAULT], 0, GD_KT, DEFAULT, 0);
 	// Per-CPU setup 
 	trap_init_percpu();
 }
@@ -144,6 +184,29 @@ trap_dispatch(struct Trapframe *tf)
 {
 	// Handle processor exceptions.
 	// LAB 3: Your code here.
+	// Dispatch page fault to the special handler
+	if(tf->tf_trapno == T_PGFLT)
+	{
+		page_fault_handler(tf);
+		return;
+	}
+	// Dispatch BreakPoint Exceptions
+	if(tf->tf_trapno == T_BRKPT || tf->tf_trapno == T_DEBUG)
+	{
+		monitor(tf);
+		return;
+	}
+	// Dispatch System Calls
+	if(tf->tf_trapno == T_SYSCALL)
+	{
+		int32_t ret_val;
+		struct PushRegs* regs = &(tf->tf_regs);
+		ret_val = syscall(regs->reg_eax, regs->reg_edx, regs->reg_ecx, 
+		regs->reg_ebx, regs->reg_edi, regs->reg_esi);
+		// eax is unsigned, and store the return value of syscall
+		regs->reg_eax = (uint32_t)ret_val;
+		return;
+	}
 
 	// Unexpected trap: The user process or the kernel has a bug.
 	print_trapframe(tf);
@@ -205,6 +268,8 @@ page_fault_handler(struct Trapframe *tf)
 	// Handle kernel-mode page faults.
 
 	// LAB 3: Your code here.
+	if((tf->tf_cs & 3) == 0)
+		panic("Page Fault in Kernel-Mode at %08x.\n", fault_va);
 
 	// We've already handled kernel-mode exceptions, so if we get here,
 	// the page fault happened in user mode.

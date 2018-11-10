@@ -166,6 +166,8 @@ mem_init(void)
 	//////////////////////////////////////////////////////////////////////
 	// Make 'envs' point to an array of size 'NENV' of 'struct Env'.
 	// LAB 3: Your code here.
+	extern struct Env* envs;
+	envs = boot_alloc(NENV * sizeof(struct Env));
 
 	//////////////////////////////////////////////////////////////////////
 	// Now that we've allocated the initial kernel data structures, we set
@@ -200,6 +202,8 @@ mem_init(void)
 	//    - the new image at UENVS  -- kernel R, user R
 	//    - envs itself -- kernel RW, user NONE
 	// LAB 3: Your code here.
+	boot_map_region(kern_pgdir, UENVS, ROUNDUP(NENV * sizeof(struct Env), PGSIZE), 
+	PADDR(envs), PTE_U);
 
 	//////////////////////////////////////////////////////////////////////
 	// Use the physical memory that 'bootstack' refers to as the kernel
@@ -579,7 +583,44 @@ int
 user_mem_check(struct Env *env, const void *va, size_t len, int perm)
 {
 	// LAB 3: Your code here.
+	// flag shows whether The check fails
+	int flag = 0;
+	// pte_addr points the page table entry
+	pte_t* pte_addr = NULL;
+	// addr is not a loop variable because we need it later to set user_mem_check_addr
+	uintptr_t addr;
+	// perm may not contain PTE_U 
+	perm = perm | PTE_U | PTE_P;
 
+	// To avoid overflow, write the condition like this
+	// If there really exists overflow, then ULIM check will fail first
+	for(addr = (uintptr_t)va; addr - (uintptr_t)va < len; addr += PGSIZE)
+	{
+		// First do the ULIM Check
+		if(addr >= ULIM)
+		{
+			flag = 1;
+			break;
+		}
+		// Then Check whether the page table entry exists
+		if(page_lookup(env->env_pgdir, (void*)addr, &pte_addr) == NULL)
+		{
+			flag = 1;
+			break;
+		}
+		// Finally do the perm check
+		if((*pte_addr & perm) == 0)
+		{
+			flag = 1;
+			break;
+		}
+	}
+	// The first address that makes error must is aligned to page size
+	if(flag)
+	{
+		user_mem_check_addr = (addr == (uintptr_t)va) ? addr : ROUNDDOWN(addr, PGSIZE);	
+		return -E_FAULT;
+	}
 	return 0;
 }
 
