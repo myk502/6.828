@@ -25,6 +25,9 @@ struct Command {
 static struct Command commands[] = {
 	{ "help", "Display this list of commands", mon_help },
 	{ "kerninfo", "Display information about the kernel", mon_kerninfo },
+	{"backtrace", "Display information of calling chain", mon_backtrace},
+	{"continue", "Continue the running of current running env", mon_continue},
+	{"stepi", "Single Step One Instruction of current running env", mon_stepi}
 };
 
 /***** Implementations of basic kernel monitor commands *****/
@@ -59,7 +62,60 @@ int
 mon_backtrace(int argc, char **argv, struct Trapframe *tf)
 {
 	// Your code here.
+	// The data structure to save information about EIP
+	struct Eipdebuginfo info;
+	uint32_t arg[4];
+	uint32_t* ebp = (uint32_t*)read_ebp();
+	while(ebp != NULL)
+	{
+		uint32_t eip = *(ebp + 1);
+		for(int i = 0; i < 4; i++)
+			arg[i] = *(ebp + i + 2);
+		cprintf("ebp %08x eip %08x args ", ebp, eip);
+		for(int i = 0; i < 4; i++)
+			cprintf("%08x ", arg[i]);
+		cprintf("\n");
+		if(debuginfo_eip(eip, &info) == 0)
+		{
+			cprintf("%s:%d: ", info.eip_file, info.eip_line);
+			cprintf("%.*s", info.eip_fn_namelen, info.eip_fn_name);
+			cprintf("+%d\n", eip - (uint32_t)info.eip_fn_addr);
+		}
+		else
+			cprintf("Error happened when reading symbol table\n");
+		ebp = (uint32_t*) (*ebp);
+	}
 	return 0;
+}
+
+int mon_continue(int argc, char **argv, struct Trapframe *tf)
+{
+	// Continue exectuion of current env. 
+	// Because we need to exit the monitor, retrun -1 when we can do so
+	// Corner Case: If no trapframe(env context) is given, do nothing
+	if(tf == NULL)
+	{
+		cprintf("No Env is Running! This is Not a Debug Monitor!\n");
+		return 0;
+	}
+	// Because we want the program to continue running; clear the TF bit
+	tf->tf_eflags &= ~(FL_TF);
+	return -1;
+}
+
+int mon_stepi(int argc, char **argv, struct Trapframe *tf)
+{
+	// Continue exectuion of current env. 
+	// Because we need to exit the monitor, retrun -1 when we can do so
+	// Corner Case: If no trapframe(env context) is given, do nothing
+	if(tf == NULL)
+	{
+		cprintf("No Env is Running! This is Not a Debug Monitor!\n");
+		return 0;
+	}
+	// Because we want the program to single step, set the TF bit
+	tf->tf_eflags |= (FL_TF);
+	return -1;
 }
 
 
