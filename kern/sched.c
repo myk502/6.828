@@ -29,9 +29,36 @@ sched_yield(void)
 	// below to halt the cpu.
 
 	// LAB 4: Your code here.
-
+	// idle is where we start searching
+	idle = (curenv == NULL) ? envs : (curenv + 1);
+	// A flag, indicating whether find an runnable env
+	bool flag = false;
+	for(struct Env* e = idle; e != envs + NENV; e++)
+	{
+		if(e->env_status == ENV_RUNNABLE)
+		{
+			flag = true;
+			env_run(e);
+			break;
+		}
+	}
+	// do the circular searching
+	if(!flag)
+		for(struct Env* e = envs; e != idle; e++)
+		{
+			if(e->env_status == ENV_RUNNABLE)
+			{
+				flag = true;
+				env_run(e);
+				break;
+			}		
+		}
+	// check idle for the last time, for the time it is running
+	if(!flag && curenv != NULL && curenv->env_status == ENV_RUNNING)
+		env_run(curenv);
 	// sched_halt never returns
-	sched_halt();
+	if(!flag)
+		sched_halt();
 }
 
 // Halt this CPU when there is nothing to do. Wait until the
@@ -75,7 +102,7 @@ sched_halt(void)
 		"pushl $0\n"
 		"pushl $0\n"
 		// Uncomment the following line after completing exercise 13
-		//"sti\n"
+		"sti\n"
 		"1:\n"
 		"hlt\n"
 		"jmp 1b\n"
