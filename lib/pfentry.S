@@ -65,18 +65,46 @@ _pgfault_upcall:
 	// ways as registers become unavailable as scratch space.
 	//
 	// LAB 4: Your code here.
+	// fault_va and errno is useless now, since we will use popal to 
+	// registers, move the esp to point to correct stuff
+
+	addl $8, %esp
+
+	// we need to put the "eip" to the right place
+	// if we use push command after switching the stack, then we need a 
+	// general-purpose register to save this value, which is unacceptable
+	// so we use mov command to do this, and do this before "popal" command
+	// %eax stores the eip value, %ebx stores where to put it
+	// Important: We need to modify the %esp in UTrapframe here, because we need
+	// to return to the (%esp - 4) place
+
+	movl 0x20(%esp), %eax
+	movl 0x28(%esp), %ebx
+	subl $4, %ebx
+	movl %ebx, 0x28(%esp)
+	movl %eax, (%ebx)
 
 	// Restore the trap-time registers.  After you do this, you
 	// can no longer modify any general-purpose registers.
 	// LAB 4: Your code here.
 
+	popal
+
 	// Restore eflags from the stack.  After you do this, you can
 	// no longer use arithmetic operations or anything else that
 	// modifies eflags.
 	// LAB 4: Your code here.
+	// eip on this stack is useless now, ignore it
+
+	addl $4, %esp
+	popf
 
 	// Switch back to the adjusted trap-time stack.
 	// LAB 4: Your code here.
 
+	movl (%esp), %esp
+
 	// Return to re-execute the instruction that faulted.
 	// LAB 4: Your code here.
+
+	ret
