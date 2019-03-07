@@ -92,6 +92,12 @@ duppage(envid_t envid, unsigned pn)
 		if((error_code = sys_page_map(0, addr, envid, addr, PTE_U | PTE_P)) < 0)
 			panic("Page Map Failed: %e", error_code);
 	}
+	// LAB5: page share copes with pages concerning fds 
+	else if(pte & PTE_SHARE)
+	{
+		if((error_code = sys_page_map(0, addr, envid, addr, pte & PTE_SYSCALL)) < 0)
+			panic("Page Map Failed: %e", error_code);
+	}
 	else
 	{
 		// Map this page to the child, and make it COW

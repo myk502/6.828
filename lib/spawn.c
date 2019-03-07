@@ -11,6 +11,15 @@ static int map_segment(envid_t child, uintptr_t va, size_t memsz,
 		       int fd, size_t filesz, off_t fileoffset, int perm);
 static int copy_shared_pages(envid_t child);
 
+// A wrapper, to get the page table entry at virtual address addr
+// In the case of page table does not exist, return 0(representing no mapping)
+static pte_t get_pte(void* addr)
+{
+	if((uvpd[PDX((uintptr_t)addr)] & PTE_P) == 0)
+		return 0;
+	return uvpt[PGNUM((uintptr_t)addr)];
+}
+
 // Spawn a child process from a program image loaded from the file system.
 // prog: the pathname of the program to run.
 // argv: pointer to null-terminated array of pointers to strings,
@@ -129,7 +138,6 @@ spawn(const char *prog, const char **argv)
 	if ((r = copy_shared_pages(child)) < 0)
 		panic("copy_shared_pages: %e", r);
 
-	child_tf.tf_eflags |= FL_IOPL_3;   // devious: see user/faultio.c
 	if ((r = sys_env_set_trapframe(child, &child_tf)) < 0)
 		panic("sys_env_set_trapframe: %e", r);
 
@@ -302,6 +310,21 @@ static int
 copy_shared_pages(envid_t child)
 {
 	// LAB 5: Your code here.
+	for(unsigned int i = 0; i < PGNUM(UTOP); i++)
+	{
+		// Remember to ignore exception stack
+		if(i == PGNUM(UXSTACKTOP - PGSIZE))
+			continue;
+		// check whether this page table entry is valid(whether there exists a mapping)
+		void* addr = (void*)(i * PGSIZE);
+		pte_t pte = get_pte(addr);
+		if((pte & PTE_P) && (pte & PTE_SHARE))
+		{
+			int error_code = 0;
+			if((error_code = sys_page_map(0, addr, child, addr, pte & PTE_SYSCALL)) < 0)
+				panic("Page Map Failed: %e", error_code);
+		}
+	}
 	return 0;
 }
 

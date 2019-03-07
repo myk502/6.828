@@ -141,7 +141,30 @@ devfile_write(struct Fd *fd, const void *buf, size_t n)
 	// remember that write is always allowed to write *fewer*
 	// bytes than requested.
 	// LAB 5: Your code here
-	panic("devfile_write not implemented");
+	int m;
+	size_t max_size = ARRAY_SIZE(fsipcbuf.write.req_buf), tot;
+	fsipcbuf.write.req_fileid = fd->fd_file.id;
+	// copy these cnt bytes to the buffer, wait to be sent to fs env
+	/*
+	for(tot = 0; tot < n; tot += m)
+	{
+		// how many bytes to write in one IPC
+		size_t cnt = ((n - tot) < max_size) ? (n - tot) : max_size;
+		memmove(fsipcbuf.write.req_buf, buf, cnt);
+		fsipcbuf.write.req_n = cnt;
+		m = fsipc(FSREQ_WRITE, NULL);
+		if(m <= 0)
+			break;
+	}
+	return ((tot < n) ? tot : n);
+	*/
+	tot = (n < max_size) ? n : max_size;
+	memmove(fsipcbuf.write.req_buf, buf, tot);
+	fsipcbuf.write.req_n = tot;
+	m = fsipc(FSREQ_WRITE, NULL);
+	if(m < 0)
+		return m;
+	return tot; 
 }
 
 static int
