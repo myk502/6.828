@@ -4,6 +4,7 @@
 #include <inc/error.h>
 #include <inc/string.h>
 #include <inc/assert.h>
+#include <inc/time.h>
 
 #include <kern/env.h>
 #include <kern/pmap.h>
@@ -11,6 +12,7 @@
 #include <kern/syscall.h>
 #include <kern/console.h>
 #include <kern/sched.h>
+#include <kern/kclock.h>
 
 // Print a string to the system console.
 // The string is exactly 'len' characters long.
@@ -410,6 +412,22 @@ sys_ipc_recv(void *dstva)
 	return 0;
 }
 
+// Get system time from CMOS
+static int 
+sys_get_time(struct tm* tm)
+{
+	unsigned datas, datam, datah;
+    int i;
+    tm->tm_sec = BCD_TO_BIN(mc146818_read(0));
+    tm->tm_min = BCD_TO_BIN(mc146818_read(2));
+    tm->tm_hour = BCD_TO_BIN(mc146818_read(4)) + TIMEZONE;
+    tm->tm_wday = BCD_TO_BIN(mc146818_read(6));
+    tm->tm_mday = BCD_TO_BIN(mc146818_read(7));
+    tm->tm_mon = BCD_TO_BIN(mc146818_read(8));
+    tm->tm_year = BCD_TO_BIN(mc146818_read(9));
+    return 0;
+}
+
 // Dispatches to the correct kernel function, passing the arguments.
 int32_t
 syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, uint32_t a5)
@@ -451,6 +469,8 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 		return sys_ipc_recv((void*)a1);
 	case SYS_env_set_trapframe:
 		return sys_env_set_trapframe((envid_t)a1, (struct Trapframe*)a2);
+	case SYS_get_time:
+		return sys_get_time((struct tm*) a1);
 	case NSYSCALLS:
 		return 0;
 	default:

@@ -117,3 +117,8 @@ sys_ipc_recv(void *dstva)
 	return syscall(SYS_ipc_recv, 1, (uint32_t)dstva, 0, 0, 0, 0);
 }
 
+int 
+sys_get_time(struct tm* time)
+{
+	return syscall(SYS_get_time, 1, (uint32_t)time, 0, 0, 0, 0);
+}
